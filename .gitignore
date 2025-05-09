@@ -1,19 +1,24 @@
-# Haskellコンパイル結果
-*.o
-*.hi
+# LaTeX 中間ファイル（PDFは除く）
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+*.lof
+*.lot
+*.dvi
 
-# 一時ファイル
+# TeXエディタの一時ファイル
 *.tmp
 *.bak
-
-# エディタの設定ファイル
 *.swp
 *.swo
+
+# VSCodeやJetBrainsなどの設定ファイル
 .vscode/
 .idea/
 
-# ログファイル
-*.log
-
-# 環境変数ファイル
+# 環境変数ファイル（万が一あれば）
 .env

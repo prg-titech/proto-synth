@@ -1,0 +1,962 @@
+\documentclass{article}
+\usepackage{listings}
+\lstdefinelanguage{JavaScript}{
+  keywords={break, case, catch, continue, debugger, default, delete, do, else, finally, for, function, if, in, instanceof, new, return, switch, this, throw, try, typeof, var, void, while, with},
+  basicstyle = \ttfamily,
+  sensitive=true,
+  comment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  morestring=[b]", 
+  morestring=[b]'
+}
+\usepackage{color}
+\usepackage{graphicx}
+
+\title{RefSynの手動解析記録}
+\author{}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\section{対象関数: \texttt{append}}
+現在のノードを先頭とする連結リストの末尾に、新しいノードを追加するメソッド。
+引数として渡された値を \texttt{val} フィールドにもつノードを新たに作成し、それをリストの最後に接続。
+
+\subsection{初期プログラム}
+
+\begin{lstlisting}[language=JavaScript]
+class Node {
+  append(arg) { /* TBD */ }
+}
+var lst = new Node(); 
+lst.val = 2;
+lst.append(0);
+lst.append(3);
+\end{lstlisting}
+
+\subsection{操作ログ}
+
+\subsubsection{\texttt{lst.append(0)} に対する操作}
+\begin{itemize}
+  \item \texttt{addNode}: \_\_temp1, Node, false, undefined
+  \item \texttt{addNode}: \_\_temp2, 0, true, string
+  \item \texttt{addEdge}: \_\_temp1, \_\_temp2, val
+  \item \texttt{addEdge}: main-new1, \_\_temp1, next
+\end{itemize}
+
+\subsubsection{\texttt{lst.append(3)} に対する操作}
+\begin{itemize}
+  \item \texttt{addNode}: \_\_temp3, Node, false, undefined
+  \item \texttt{addNode}: \_\_temp4, 3, true, string
+  \item \texttt{addEdge}: \_\_temp3, \_\_temp4, val
+  \item \texttt{addEdge}: temp1, \_\_temp3, next
+\end{itemize}
+
+\subsection{手動で復元したコード}
+
+\subsubsection{\texttt{lst.append(0)}}
+\begin{lstlisting}[language=JavaScript]
+var temp1 = new Node();
+var temp2 = 0;
+temp1.val = temp2;
+this.next = temp1;
+\end{lstlisting}
+
+\subsubsection{\texttt{lst.append(3)}}
+\begin{lstlisting}[language=JavaScript]
+var temp1 = new Node();
+var temp2 = 3;
+temp1.val = temp2;
+this.next.next = temp1;
+\end{lstlisting}
+
+\subsection{一般化と部分関数の推定}
+
+\begin{lstlisting}[language=JavaScript]
+var temp1 = new Node();
+var temp2 = f();    // f() = 引数 arg を返す関数
+temp1.val = temp2;
+g().next = temp1;   // g() = 現在のリストの末尾を返す関数
+\end{lstlisting}
+
+\subsection{想定の合成された関数}
+\begin{lstlisting}
+append(arg) {
+  var temp1 = new Node();
+  function f() {
+    return arg;
+  }
+  var temp2 = f();
+  temp1.val = temp2;
+  function g() {
+    if(!this.next) {
+      return this;
+    } else {
+      this.next.g();    // できないけど
+    }
+  }
+  g().next = temp1;
+}
+\end{lstlisting}
+
+\subsection{oracleの関数}
+\begin{lstlisting}[language=JavaScript]
+append(arg) {
+  if(!this.next) {
+    this.next = new Node();
+    this.net.val = arg;
+  } else {
+    this.next.append(arg);
+  }
+}
+\end{lstlisting}
+
+
+% \clearpage
+
+%====================================================================================
+\section{対象関数: \texttt{prepend}}
+現在のノードを先頭とする連結リストの先頭に、新しいノードを追加するメソッド。
+引数として渡された値を \texttt{val} フィールドにもつノードを新たに作成し、それをリストの先頭に接続。
+
+\subsection{初期プログラム}
+
+\begin{lstlisting}[language=JavaScript]
+class Node {
+  prepend(arg) { /* TBD */ }
+}
+var lst = new Node(); 
+lst.val = 2;
+lst = lst.prepend(0);
+lst = lst.prepend(3);
+\end{lstlisting}
+
+\subsection{操作ログ}
+
+\subsubsection{\texttt{lst.prepend(0)} に対する操作}
+\begin{itemize}
+  \item \texttt{addNode}: \_\_temp1, Node, false, undefined
+  \item \texttt{addNode}: \_\_temp2, 0, true, string
+  \item \texttt{addEdge}: \_\_temp1, \_\_temp2, val
+  \item \texttt{addEdge}: \_\_temp1, main-new1, next
+  \item \texttt{addVariable}: \_\_temp1, return
+\end{itemize}
+
+\subsubsection{\texttt{lst.prepend(3)} に対する操作}
+\begin{itemize}
+  \item \texttt{addNode}: \_\_temp3, Node, false, undefined
+  \item \texttt{addNode}: \_\_temp4, 3, true, string
+  \item \texttt{addEdge}: \_\_temp3, \_\_temp4, val
+  \item \texttt{addEdge}: \_\_temp3, \_\_temp1, next
+  \item \texttt{addVariable}: \_\_temp3, return
+\end{itemize}
+
+\subsection{手動で復元したコード}
+
+\subsubsection{\texttt{lst.prepend(0)}}
+\begin{lstlisting}[language=JavaScript]
+var temp1 = new Node();
+var temp2 = 0;
+temp1.val = temp2;
+temp1.next = this;
+return temp1;
+\end{lstlisting}
+
+\subsubsection{\texttt{lst.prepend(3)}}
+\begin{lstlisting}[language=JavaScript]
+var temp3 = new Node();
+var temp4 = 3;
+temp3.val = temp4;
+temp3.next = this;
+return temp3;
+\end{lstlisting}
+
+temp1をthisにすることは実行時情報から判断できる？
+
+\subsection{一般化と部分関数の推定}
+
+\begin{lstlisting}[language=JavaScript]
+var temp1 = new Node();
+var temp2 = f();    // f() = 引数 arg を返す関数
+temp1.val = temp2;
+temp1.next = this;
+return temp1;
+\end{lstlisting}
+
+\subsection{想定の合成された関数}
+\begin{lstlisting}
+prepend(arg) {
+  var temp1 = new Node();
+  function f() {
+    return arg;
+  }
+  var temp2 = f();
+  temp1.val = temp2;
+  temp1.next = this;
+  return temp1;
+}
+\end{lstlisting}
+
+\subsection{oracleの関数}
+\begin{lstlisting}[language=JavaScript]
+prepend(arg) {
+  var temp1 = new Node();
+  temp1.val = arg;
+  temp1.next = this;
+  return temp1;
+}
+\end{lstlisting}
+
+
+% \clearpage
+
+
+%====================================================================================
+\section{対象関数: \texttt{removeLast}}
+現在のノードを先頭とする連結リストの最後尾のノードを消すメソッド。
+
+\subsection{初期プログラム}
+
+\begin{lstlisting}[language=JavaScript]
+class Node {
+    removeLast() { /* TBD */ }
+}
+var lst = new Node(); 
+lst.val = 2;
+lst.next = new Node();
+lst.next.val = 0;
+lst.next.next = new Node();
+lst.next.next.val = 3;
+lst.removeLast();
+lst.removeLast();
+\end{lstlisting}
+
+\subsection{操作ログ}
+
+\subsubsection{\texttt{lst.removeLast()} に対する操作}
+\begin{itemize}
+  \item \texttt{deleteNode}: main-new3
+\end{itemize}
+
+\subsubsection{\texttt{lst.removeLasr()} に対する操作}
+\begin{itemize}
+  \item \texttt{deleteNode}: main-new2
+\end{itemize}
+
+nextとかvalとかも消しても良い  \\
+Nodeだけ消せば可視化されない
+
+\subsection{手動で復元したコード}
+
+\subsubsection{\texttt{lst.removeLast()}}
+\begin{lstlisting}[language=JavaScript]
+this.next.next = undefined
+\end{lstlisting}
+
+\subsubsection{\texttt{lst.removeLast()}}
+\begin{lstlisting}[language=JavaScript]
+this.next = undefined
+\end{lstlisting}
+
+next先のNodeが消えた  \\
+nullではなく、undefined  \\
+constructorがあるならnullでよい 
+
+\subsection{一般化と部分関数の推定}
+
+\begin{lstlisting}[language=JavaScript]
+f().next = undefined;   // f() = 現在のリストの末尾を返す関数
+\end{lstlisting}
+
+\subsection{想定の合成された関数}
+\begin{lstlisting}
+removeLast() {
+  function f() {
+    if(!this.next.next) {
+      return this.next;
+    } else {
+      this.next.g();    // できないけど
+    }
+  }
+  f().next = undefined;
+}
+\end{lstlisting}
+
+\subsection{oracleの関数}
+\begin{lstlisting}[language=JavaScript]
+removeLast() {
+  if(this.next.next === undefined) {
+    this.next = undefined;
+  } else {
+    this.next.removeLast();
+  }
+}
+\end{lstlisting}
+
+% \clearpage
+
+
+
+
+
+%====================================================================================
+\section{対象関数: \texttt{removeFirst}}
+現在のノードを先頭とする連結リストの先頭のノードを消すメソッド。
+
+\subsection{初期プログラム}
+
+\begin{lstlisting}[language=JavaScript]
+class Node {
+    removeFirst() { /* TBD */ }
+}
+var lst = new Node(); 
+lst.val = 2;
+lst.next = new Node();
+lst.next.val = 0;
+lst.next.next = new Node();
+lst.next.next.val = 3;
+lst = lst.removeFirst();
+lst = lst.removeFirst();
+\end{lstlisting}
+
+\subsection{操作ログ}
+
+\subsubsection{\texttt{lst.removeFirst()} に対する操作}
+\begin{itemize}
+  \item \texttt{addVariable}: main-new2, return
+\end{itemize}
+
+\subsubsection{\texttt{lst.removeFirst()} に対する操作}
+\begin{itemize}
+  \item \texttt{addVariable}: main-new3, return
+\end{itemize}
+
+\subsection{手動で復元したコード}
+
+\subsubsection{\texttt{lst.prepend(0)}}
+\begin{lstlisting}[language=JavaScript]
+return this.next;
+\end{lstlisting}
+ここの変換は非自明？
+
+
+\subsubsection{\texttt{lst.prepend(3)}}
+\begin{lstlisting}[language=JavaScript]
+return this.next;
+\end{lstlisting}
+
+\subsection{一般化と部分関数の推定}
+
+\begin{lstlisting}[language=JavaScript]
+return this.next;
+\end{lstlisting}
+
+\subsection{想定の合成された関数}
+\begin{lstlisting}
+removeFirst() {
+  return this.next;
+}
+\end{lstlisting}
+
+\subsection{oracleの関数}
+\begin{lstlisting}[language=JavaScript]
+removeFirst() {
+  return this.next;
+}
+\end{lstlisting}
+
+% \clearpage
+
+
+
+
+
+%====================================================================================
+
+
+
+%====================================================================================
+\section{対象関数: \texttt{removeVal(arg)}}
+連結リスト内のvalフィールドがargの値を持つノードを削除するメソッド。
+
+\subsection{初期プログラム}
+
+\begin{lstlisting}[language=JavaScript]
+class Node {
+  removeVal(arg) { /* TBD */ }
+}
+var lst = new Node(); 
+lst.val = 2;
+lst.next = new Node();
+lst.next.val = 0;
+lst.next.next = new Node(); 
+lst.next.next.val = 3;
+lst.next.next.next = new Node(); 
+lst.next.next.next.val = 1;
+lst = lst.removeVal(0);
+lst = lst.removeVal(1);
+\end{lstlisting}
+
+\subsection{操作ログ}
+
+\subsubsection{\texttt{lst.removeVal(0)} に対する操作}
+\begin{itemize}
+  \item \texttt{editEdgeReference}: main-new1, main-new2, main-new3, next
+  \item \texttt{addVariable}: main-new1, return
+\end{itemize}
+
+\subsubsection{\texttt{lst.removeVal(1)} に対する操作}
+\begin{itemize}
+  \item \texttt{deleteEdge}: main-new3, main-new4, next
+  \item \texttt{addVariable}: main-new1, return
+\end{itemize}
+
+\subsection{手動で復元したコード}
+
+\subsubsection{\texttt{lst.removeVal(0)}}
+\begin{lstlisting}[language=JavaScript]
+this.next = this.next.next;
+return this;
+\end{lstlisting}
+
+\subsubsection{\texttt{lst.removeVal(1)}}
+\begin{lstlisting}[language=JavaScript]
+this.next.next = null;
+return this;
+\end{lstlisting}
+
+\subsection{一般化と部分関数の推定}
+
+\begin{lstlisting}[language=JavaScript]
+f().next = g()
+// f は val フィールドに arg をもつノードの一個前
+// g は val フィールドに arg をもつノードの一個後
+\end{lstlisting}
+
+\subsection{想定の合成された関数}
+\begin{lstlisting}
+removeVal(arg) {
+  f().next = g();
+  return this;
+  f() {
+    if(this.val === arg) {
+      
+    }
+  }
+  g() {
+    if(this.val === arg) {
+    
+    }
+  }
+}
+\end{lstlisting}
+
+\subsection{oracleの関数}
+\begin{lstlisting}[language=JavaScript]
+removeVal(arg) {
+  if(this.val === arg) {
+    return this.next;
+  }
+  if(this.next !== null) {
+    this.next = this.next.removeval(arg);
+  }
+  return this;
+}
+\end{lstlisting}
+
+
+% \clearpage
+
+
+
+
+%====================================================================================
+
+%====================================================================================
+
+%====================================================================================
+
+%====================================================================================
+
+%====================================================================================
+
+%====================================================================================
+
+%====================================================================================
+
+%====================================================================================
+
+%====================================================================================
+
+%====================================================================================
+
+%====================================================================================
+
+%====================================================================================
+
+%====================================================================================
+
+
+%====================================================================================
+
+
+
+
+
+\section{対象関数: \texttt{removeAt(i)}}
+連結リストのi番目のノードを削除するメソッド。
+
+\subsection{初期プログラム}
+
+\begin{lstlisting}[language=JavaScript]
+class Node {
+  removeAt(i) { /* TBD */ }
+}
+var lst = new Node(); 
+lst.val = 2;
+lst.next = new Node();
+lst.next.val = 0;
+lst.next.next = new Node(); 
+lst.next.next.val = 3;
+lst.next.next.next = new Node(); 
+lst.next.next.next.val = 1;
+lst.removeAt(2);
+lst.removeAt(1);
+\end{lstlisting}
+
+\subsection{操作ログ}
+
+\subsubsection{\texttt{lst.removeAt(2)} に対する操作}
+\begin{itemize}
+  \item \texttt{editEdgeReference}: main-new2, main-new3, main-new4, next
+  \item \texttt{addVariable}: main-new1, return
+\end{itemize}
+
+\subsubsection{\texttt{lst.removeAt(1)} に対する操作}
+\begin{itemize}
+  \item \texttt{editEdgeReference}: main-new1, main-new2, main-new4, next
+  \item \texttt{addVariable}: main-new1, return
+\end{itemize}
+
+\subsection{手動で復元したコード}
+
+\subsubsection{\texttt{lst.append(0)}}
+\begin{lstlisting}[language=JavaScript]
+this.next.next = this.next.next.next;
+return this;
+\end{lstlisting}
+
+\subsubsection{\texttt{lst.append(3)}}
+\begin{lstlisting}[language=JavaScript]
+this.next = this.next.next;
+return this;
+\end{lstlisting}
+
+\subsection{一般化と部分関数の推定}
+
+\begin{lstlisting}[language=JavaScript]
+f().next = g(); 
+\\ f() = i-1 番目のノードを返す関数
+\\ g() = i+1 番目のノードを返す関数
+return this;
+\end{lstlisting}
+
+\subsection{想定の合成された関数}
+\begin{lstlisting}
+removeAt(i) {
+  f().next = g();
+  return this;
+  \\ f() = i-1 番目のノードを返す関数
+  \\ g() = i+1 番目のノードを返す関数
+}
+\end{lstlisting}
+
+\subsection{oracleの関数}
+\begin{lstlisting}[language=JavaScript]
+removeAt(i) {
+  if(i=== 0) {
+    return this.next;
+  }
+  this.next = this.next.remove(i - 1);
+  return this;
+}
+\end{lstlisting}
+
+
+% \clearpage
+
+
+
+
+
+
+\section{対象関数: \texttt{insertAfter(i, arg)}}
+連結リストのi番目の後ろに、valフィールドにargを持つ新しいノードを追加するメソッド。
+
+
+\subsection{初期プログラム}
+
+\begin{lstlisting}[language=JavaScript]
+class Node {
+  insertAfter(i, arg) { /* TBD */ }
+}
+var lst = new Node(); 
+lst.val = 2;
+lst.next = new Node();
+lst.next.val = 0;
+lst.insertAfter(0,3);
+lst.insertAfter(1,4);
+\end{lstlisting}
+
+\subsection{操作ログ}
+
+\subsubsection{\texttt{lst.insertAfter(0,3)} に対する操作}
+\begin{itemize}
+  \item \texttt{addNode}: \_\_temp1, Node, false, undefined
+  \item \texttt{addNode}: \_\_temp2, 3, true, string
+  \item \texttt{addEdge}: \_\_temp1, \_\_temp2, val
+  \item \texttt{addEdge}: \_\_temp1, main-new2, next
+  \item \texttt{editEdgeReference}: main-new1, main-new2, \_\_temp1, next
+\end{itemize}
+
+\subsubsection{\texttt{lst.insertAftere(1,4)} に対する操作}
+\begin{itemize}
+  \item \texttt{addNode}: \_\_temp3, Node, false, undefined
+  \item \texttt{addNode}: \_\_temp4, 4, true, string
+  \item \texttt{addEdge}: \_\_temp3, \_\_temp4, val
+  \item \texttt{addEdge}: \_\_temp3, main-new2, next
+  \item \texttt{editEdgeReference}: \_\_temp1, main-new2, \_\_temp3, next
+\end{itemize}
+
+\subsection{手動で復元したコード}
+
+\subsubsection{\texttt{lst.insertAfter(0,3)}}
+\begin{lstlisting}[language=JavaScript]
+var temp1 = new Node();
+var temp2 = 3;
+temp1.val = temp2;
+temp1.next = this.next;
+this.next = temp1;
+\end{lstlisting}
+
+\subsubsection{\texttt{lst.insetAfter(1,4)}}
+\begin{lstlisting}[language=JavaScript]
+var temp1 = new Node();
+var temp2 = 4;
+temp1.val = temp2;
+temp1.next = this.next.next;
+this.next.next = temp1;
+\end{lstlisting}
+
+\subsection{一般化と部分関数の推定}
+
+\begin{lstlisting}[language=JavaScript]
+var temp1 = new Node();
+var temp2 = f();        // f() = 引数 arg を返す関数
+temp1.val = temp2;
+temp1.next = g()    // g() = i+1 番目のノードを返す関数
+h().next = temp1;   // h() = i-1 番目のノードを返す関数
+\end{lstlisting}
+
+\subsection{想定の合成された関数}
+\begin{lstlisting}
+insertAfter(i,arg) {
+  var temp1 = new Node();
+  var temp2 = arg;
+  temp1.val = temp2;
+  temp1.next = find(i+1);
+  find(i-1).next = temp1;
+}
+\end{lstlisting}
+
+\subsection{oracleの関数}
+\begin{lstlisting}[language=JavaScript]
+insertAfter(i, arg) {
+  function find(node, index) {
+    if (node === null) {
+      return null;
+    }
+    if (index === 0) {
+      return node;
+    }
+    return find(node.next, index - 1);
+  }
+  const targetNode = find(this, i);
+  if (targetNode !== null) {
+    const newNode = new Node();
+    newNode.val = arg;
+    newNode.next = targetNode.next;
+    targetNode.next = newNode;
+  }
+}
+\end{lstlisting}
+
+% \clearpage
+
+
+
+
+\section{対象関数: \texttt{concat(lst)}}
+現在のノードを先頭とする連結リストの末尾に、別の連結リストを追加するメソッド。
+
+\subsection{初期プログラム}
+
+\begin{lstlisting}[language=JavaScript]
+class Node {
+  concat(otherList) { /* TBD */ }
+}
+var lst = new Node(); 
+lst.val = 2;
+lst.next = new Node();
+lst.next.val = 0;
+lst.next.next = new Node(); 
+lst.next.next.val = 3;
+var list = new Node(); 
+list.val = 1;
+list.next = new Node();
+list.next.val = 4;
+var l = new Node();
+l.val = 5;
+lst.concat(list);
+lst.concat(l);
+\end{lstlisting}
+
+\subsection{操作ログ}
+
+\subsubsection{\texttt{lst.concat(list)} に対する操作}
+\begin{itemize}
+  \item \texttt{addEdge}: main-new3, main-new4, next
+\end{itemize}
+
+\subsubsection{\texttt{lst.concat(l)} に対する操作}
+\begin{itemize}
+  \item \texttt{addNode}: main-new5, main-new6, next
+\end{itemize}
+
+\subsection{手動で復元したコード}
+
+\subsubsection{\texttt{lst.concat(list)}}
+\begin{lstlisting}[language=JavaScript]
+this.next.next = list;
+\end{lstlisting}
+
+\subsubsection{\texttt{lst.concat(l)}}
+\begin{lstlisting}[language=JavaScript]
+this.next.next.next.next.next = l;
+\end{lstlisting}
+
+\subsection{一般化と部分関数の推定}
+
+\begin{lstlisting}[language=JavaScript]
+f().next = g();
+\\ f() = 最後のノードを返す関数
+\\ g() = 引数を返す関数
+\end{lstlisting}
+
+\subsection{想定の合成された関数}
+\begin{lstlisting}
+concat(otherList) {
+  f().next = otherList;
+  \\ f() = thisの最後のノードを返す関数
+}
+\end{lstlisting}
+
+\subsection{oracleの関数}
+\begin{lstlisting}[language=JavaScript]
+concat(otherList) {
+  if(!this.next) {
+    this.next = otherList;
+  } else {
+    this.next.concat(otherList);
+  }
+}
+\end{lstlisting}
+
+
+% \clearpage
+
+
+
+
+\section{対象関数: \texttt{set(i,arg)}}
+連結リストのi番目の値をargに変更するメソッド。
+
+\subsection{初期プログラム}
+
+\begin{lstlisting}[language=JavaScript]
+class Node {
+  set(i,arg) { /* TBD */ }
+}
+var lst = new Node(); 
+lst.val = 2;
+lst.next = new Node();
+lst.next.val = 0;
+lst.next.next = new Node(); 
+lst.next.next.val = 3;
+lst.next.next.next = new Node(); 
+lst.next.next.next.val = 1;
+lst.set(2,5);
+lst.set(1,4);
+\end{lstlisting}
+
+\subsection{操作ログ}
+
+\subsubsection{\texttt{lst.set(2,5)} に対する操作}
+\begin{itemize}
+  \item \texttt{addNode}: \_\_temp1, 5, true, string
+  \item \texttt{editEdgeReference}: main-new3, main-new3-val, \_\_temp1, val
+\end{itemize}
+
+\subsubsection{\texttt{lst.set(1,4)} に対する操作}
+\begin{itemize}
+  \item \texttt{addNode}: \_\_temp2, 4, true, string
+  \item \texttt{addEdge}: main-new2, main-new2-val, \_\_temp2, val
+\end{itemize}
+
+\subsection{手動で復元したコード}
+
+\subsubsection{\texttt{lst.set(2,5)}}
+\begin{lstlisting}[language=JavaScript]
+var temp1 = 5;
+this.next.next.val = temp1;
+\end{lstlisting}
+
+\subsubsection{\texttt{lst.set(1,4)}}
+\begin{lstlisting}[language=JavaScript]
+var temp1 = 4;
+this.next.val = temp2;
+\end{lstlisting}
+
+\subsection{一般化と部分関数の推定}
+
+\begin{lstlisting}[language=JavaScript]
+var temp1 = f();    \\ f() = 引数 arg を返す関数
+g().val = temp1;    \\ g() = i番目のノードを返す関数
+\end{lstlisting}
+
+\subsection{想定の合成された関数}
+\begin{lstlisting}
+set(i,arg) {
+  var temp1 = arg;
+  find(i).val = temp1;
+}
+\end{lstlisting}
+
+\subsection{oracleの関数}
+\begin{lstlisting}[language=JavaScript]
+set(i,arg) {
+  if(i === 0) {
+    this.val = arg;
+  }
+  if(i > 0) {
+    this.next.set(i-1,arg);
+  }
+}
+\end{lstlisting}
+
+
+% \clearpage
+
+
+\section{対象関数: \texttt{swap(i, j)}}
+現在のノードを先頭とする連結リストのi番目とj番目の要素を交換するメソッド。
+
+\subsection{初期プログラム}
+
+\begin{lstlisting}[language=JavaScript]
+class Node {
+  swap(i,j) { /* TBD */ }
+}
+var lst = new Node(); 
+lst.val = 2;
+lst.next = new Node();
+lst.next.val = 0;
+lst.next.next = new Node(); 
+lst.next.next.val = 3;
+lst.next.next.next = new Node(); 
+lst.next.next.next.val = 1;
+lst.swap(0, 3);
+lst.swap(1,2);
+\end{lstlisting}
+
+\subsection{操作ログ}
+
+\subsubsection{\texttt{lst.swap(0,3)} に対する操作}
+\begin{itemize}
+  \item \texttt{addNode}: \_\_temp1, 2, true, string
+  \item \texttt{addNode}: \_\_temp2, 1, true, string
+  \item \texttt{editEdgeReference}: main-new1, main-new1-val, \_\_temp1, val
+  \item \texttt{editEdgeReference}: main-new4, main-new4-val, \_\_temp2, val
+\end{itemize}
+
+\subsubsection{\texttt{lst.swap(1,2)} に対する操作}
+\begin{itemize}
+  \item \texttt{addNode}: \_\_temp3, 3, true, string
+  \item \texttt{addNode}: \_\_temp4, 0, true, string
+  \item \texttt{editEdgeReference}: main-new2, main-new2-val, \_\_temp3, val
+  \item \texttt{editEdgeReference}: main-new3, main-new3-val, \_\_temp4, val
+\end{itemize}
+
+\subsection{手動で復元したコード}
+操作列だけみると実際には違う挙動をするプログラムが出てくる
+参照元がなくなったが使うものは先にtempとかで変数宣言しておく？
+\subsubsection{\texttt{lst.swap(0,3)}}
+\begin{lstlisting}[language=JavaScript]
+var temp1 = 2;
+var temp2 = 1;
+this.val = temp1;
+this.next.next.next.val = temp2;
+\end{lstlisting}
+
+\subsubsection{\texttt{lst.swap(1,2)}}
+\begin{lstlisting}[language=JavaScript]
+var temp1 = 3;
+var temp2 = 0;
+this.next.val = temp1;
+this.next.next.val = temp2;
+\end{lstlisting}
+
+\subsection{一般化と部分関数の推定}
+\begin{lstlisting}[language=JavaScript]
+var temp1 = f();    \\ f() = i 番目のノードの val フィールドの値を返す関数
+var temp2 = g();    \\ g() = j 番目のノードの val フィールドの値を返す関数
+h().val = temp1;    \\ h() = j 番目のノードを返す関数
+i().val = temp2;    \\ i() = i 番目のノードを返す関数
+\end{lstlisting}
+
+\subsection{想定の合成された関数}
+\begin{lstlisting}
+swap(i,j) {
+  var temp1 = getVal(i);
+  var temp2 = getVal(j);
+  getNode(j).val = temp1;
+  getNode(i).val = temp2;
+}
+\end{lstlisting}
+
+\subsection{oracleの関数}
+\begin{lstlisting}[language=JavaScript]
+swap(i,j) {
+  function find(node, index) {
+    if(index === 0) {
+      return node;
+    }
+    return find(node.next, index - 1);
+  }
+  var nodeI = find(this, i);
+  var nodeJ = find(this, j);
+  var tempVal = nodeI.val;
+  nodeI.val = nodeJ.val;
+  nodeJ.val = tempVal;
+}
+\end{lstlisting}
+
+
+% \clearpage
+
+
+
+
+\end{document}
